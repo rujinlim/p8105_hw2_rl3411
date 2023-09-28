@@ -1,0 +1,6 @@
+---
+title: "p8105_hw2_rl3411"
+author: "rl3411"
+date: "`r Sys.Date()`"
+output: github_document
+---
