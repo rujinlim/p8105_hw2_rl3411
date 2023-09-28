@@ -4,3 +4,32 @@ author: "rl3411"
 date: "`r Sys.Date()`"
 output: github_document
 ---
+
+```{r}
+library(tidyverse)
+```
+
+# Problem 1
+
+Let's first load and clean the `pols-month.csv` dataset.
+```{r, message = F}
+pols_df <- 
+  read_csv("data/pols-month.csv") |> 
+  separate(mon, into = c("year", "month", "day"), sep = "-") |> 
+  mutate(
+    month = month.name[as.numeric(month)],
+    president = case_when(
+      (prez_gop == 1 | prez_gop == 2) ~ "gop",
+      (prez_dem == 1) ~ "dem"
+    ) 
+  ) |> 
+  select(-c(prez_gop, prez_dem, day))
+```
+
+Now, let's load and clean the `snp.csv` dataset.
+
+
+
+
+
+
