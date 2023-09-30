@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: github_document
 ---
 
-```{r}
+```{r, message = F}
 library(tidyverse)
 ```
 
@@ -28,7 +28,17 @@ pols_df <-
 
 Now, let's load and clean the `snp.csv` dataset.
 
+```{r, message = F}
+snp_df <- 
+  read_csv("data/snp.csv") |> 
+  separate(date, into = c("month", "day", "year"), sep = "/") |> 
+  select(year, month, close) |> 
+  mutate(
+    month = month.name[as.numeric(month)],
+    )
 
+
+```
 
 
 
