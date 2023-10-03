@@ -81,7 +81,7 @@ Write a short paragraph about these datasets. Explain briefly what each dataset 
 
 # Problem 2
 
-```{r}
+```{r, message = F}
 mr_tw <- 
   read_excel("data/202309 Trash Wheel Collection Data.xlsx", 
              sheet = "Mr. Trash Wheel",
@@ -126,7 +126,27 @@ dumpster_df <-
 head(dumpster_df)
 ```
 
-homes_powered
+# Problem 3
+
+```{r, message = F}
+mci_df <- 
+  read_csv("data/mci_baseline.csv") |>
+  janitor::row_to_names(row_number = 1) |> 
+  janitor::clean_names() |> 
+  mutate(
+    sex = case_match( 
+      sex,
+      "1" ~ "male",
+      "0" ~ "female"
+    ),
+    apoe4 = case_match(
+      apoe4,
+      "1" ~ "carrier",
+      "0" ~ "non-carrier"
+    ),
+  ) |> 
+  filter(age_at_onset != ".")
+```
 
 
 
