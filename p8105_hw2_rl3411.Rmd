@@ -8,6 +8,7 @@ output: github_document
 ```{r, message = F}
 library(tidyverse)
 library(readxl)
+options(scipen = 999)
 ```
 
 # Problem 1
@@ -69,8 +70,6 @@ combined_df <-
 ```
 
 
-Description:
-
 The `pols_df` dataset contains 822 observations (i.e. rows) and 9 variables (i.e. columns). It shows the number of republican and democratic governors, senators and representatives, as well as whether the president was republican or democratic from January 1947 to June 2015.
 
 The `snp_df` dataset contains 787 observations (i.e. rows) and 3 variables (i.e. columns). It shows the Standard and Poor's stock market index closing values from January 1950 to July 2015. As we are joining `snp_df` *into* `pols_df`, we take the dimension of `pols_df` and hence miss out the S&P closing price on July 2015.
@@ -122,14 +121,21 @@ gwynnda_tw <-
 dumpster_df <- 
   bind_rows(mr_tw, prof_tw) |> 
   bind_rows(gwynnda_tw)
-
-head(dumpster_df)
 ```
+
+There are `r nrow(mr_tw)` rows in the `mr_tw` dataset, `r nrow(prof_tw)` rows in the `prof_tw` dataset, and `r nrow(gwynnda_tw)` rows in the `gwynnda_tw` dataset. Thus, after combining these three datasets (as `dumpster_df`), we get a total of `r nrow(dumpster_df)` rows (i.e. observations) in the combined dataset. The `mr_tw` dataset has variables which are year, month, day, weight (in tons), volume (in cubic yards), plastic bottles, polystyrene, cigarette butts, glass bottles, plastic bags, wrappers, sports balls, and the number of homes powered. There is also an identifier variable `dumpster` to indicate which dumpster the data is referring to. The `prof_tw` has one less variable than `mr_tw` as it has no data on sports balls. The `gwynnda_tw` dataset has two less variables than `mr_tw`, as it has no data on sports balls and glass bottles. These missing data have been indicated by NA.
+
+
+| Variables                 | Mr. Trash Wheel                         | Professor Trash Wheel                       | Gwynnda Trash Wheel                            |
+| :-----------------------: | :-------------------------------------: | :-----------------------------------------: | :--------------------------------------------: |
+| Weight (in tons)          | `r sum(pull(mr_tw, weight_tons))`       | `r sum(pull(prof_tw, weight_tons))`         | `r sum(pull(gwynnda_tw, weight_tons))`         |
+
+The total weight of trash collected by Professor Trash Wheel was `r sum(pull(prof_tw, weight_tons))` tons. By comparing the total weights, Mr. Trash Wheel has collected the heaviest amount of trash at `r sum(pull(mr_tw, weight_tons))` tons, followed by Gwynnda Trash Wheel at `r sum(pull(gwynnda_tw, weight_tons))` tons and Professor Trash Wheel. The total number of cigarette butts collected by Gwynnda in July of 2021 was `r sum(pull((subset(gwynnda_tw, month %in% "July" & year %in% "2021")),cigarette_butts))`.
 
 # Problem 3
 
-```{r, message = F}
-mci_df <- 
+```{r, message = F, warning=F}
+mci_baseline_df <- 
   read_csv("data/mci_baseline.csv") |>
   janitor::row_to_names(row_number = 1) |> 
   janitor::clean_names() |> 
@@ -144,8 +150,76 @@ mci_df <-
       "1" ~ "carrier",
       "0" ~ "non-carrier"
     ),
+    age_at_onset = as.numeric(age_at_onset),
+    id = as.numeric(id),
+    current_age = as.numeric(current_age),
+    education = as.numeric(education)
   ) |> 
-  filter(age_at_onset != ".")
+  filter((current_age < age_at_onset) | is.na(age_at_onset))
+```
+
+When importing this dataset, the column names include notes on each variable and the correct variable names were moved to the next row in the dataset. To change this, we use the `row_to_names()` function in the `janitor` package. To encode `sex` appropriately, we code 1 as male and 0 as female. To encode `apoe4` appropriately, we code 1 as carrier and 0 as non-carrier. We also remove any participants who do not meet the stated inclusion criteria, i.e. we remove participants whose MCI onset appears to predate enrollment in the study. The numeric variables were also imported as characters, hence we use `as.numeric()` to make the conversion, which also automatically sets the onset ages "." as NAs. 
+
+`r tail(mci_baseline_df,1)[1]` participants were recruited, of which `r tail(mci_baseline_df,1)[1] - nrow(mci_baseline_df)` were removed as they did not meet the stated inclusion criteria, leaving us with `r nrow(mci_baseline_df)` participants. Among these participants, `r length(table(pull(mci_baseline_df, age_at_onset)))` of them developed MCI. The average baseline age is `r round(mean(pull(mci_baseline_df, current_age), na.rm =T),1)`. Out of the `r length(which(mci_baseline_df$sex=="female"))` women in our dataset, `r length(which(mci_baseline_df$sex=="female" & mci_baseline_df$apoe4=="carrier"))` of them are APOE4 carriers.
+
+```{r, message = F, warning=F}
+mci_amyloid_df <- 
+  read_csv("data/mci_amyloid.csv") |>
+  janitor::row_to_names(row_number = 1) |> 
+  janitor::clean_names() |> 
+  rename(id = study_id,
+         year_0 = baseline,
+         year_2 = time_2,
+         year_4 = time_4,
+         year_6 = time_6,
+         year_8 = time_8) |> 
+    mutate(
+    across(where(is.character), ~ na_if(., "Na")),
+    id = as.numeric(id)
+    ) |> 
+  pivot_longer(
+    year_0:year_8,
+    names_to = "timepoint",
+    values_to = "biomarker"
+  ) 
+```
+
+In the `mci_amyloid_df` dataset, similar to the baseline data, we use the `row_to_names()` function to set variable names correctly. Some of the NAs were coded as "Na", these were replaced with `NA`. Furthermore, we rename the variables into years 0, 2, 4, 6, 8 as it is more informative that naming them as `time_`. We also rename the `study_id` variable to `id` for consistency with the baseline dataframe. Lastly, we pivot the dataset to view the biomarker values longitudinally. 
+
+## Comparing `mci_baseline_df` and `mci_amyloid_df`
+
+```{r, message = F}
+id_in_baseline = 
+  anti_join(mci_baseline_df, mci_amyloid_df) # to see those in baseline not in amyloid
+
+id_in_amyloid = 
+  anti_join(mci_amyloid_df, mci_baseline_df) # to see those in amyloid not in baseline
+```
+
+There are `r length(id_in_baseline[[1]])` participants who are in `mci_baseline_df` but not in `mci_amyloid_df`. 
+
+```{r, message=F}
+id_in_baseline[[1]]
+```
+
+There are `r length(unique(id_in_amyloid[[1]]))` participants who are in `mci_amyloid_df` but not in `mci_baseline_df`.
+
+```{r, message=F}
+unique(id_in_amyloid[[1]])
+```
+
+Now, we combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained. 
+
+```{r, message = F}
+mci_df <- inner_join(mci_baseline_df, mci_amyloid_df)
+```
+
+In summary, there are 495 IDs in total, and 8 are only in the baseline dataset and 16 are only in the amyloid dataframe. But only taking those that remain in both, we only have 471 patients left. 
+
+## Export MCI data
+
+```{r}
+write_csv(mci_df, file = "MCI dataset.csv")
 ```
 
 
